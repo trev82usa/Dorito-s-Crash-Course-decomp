@@ -1,0 +1,23 @@
+# Build output
+out/
+build/
+
+# Recompiled C++ is regenerated from game/default.xex during the build
+generated/default/
+
+# Packaging output
+DoritosCrashCourse/
+*.zip
+
+# Editors / OS
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+__pycache__/
+
+# Game files: supply your own copy (see README). Never commit them.
+game/*
+!game/README.txt

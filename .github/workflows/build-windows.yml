@@ -1,0 +1,181 @@
+name: Build Windows exe
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # ReXGlue SDK release to build against. Codegen and runtime come from the
+  # same package, so the generated code always matches the runtime.
+  REXGLUE_VERSION: v0.10.0
+  PROJECT: doritos_crash_course
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # The game's files aren't in the public repository: build only where
+      # game/default.xex and game/data.pak have been added (see README).
+      - name: Check for game files
+        id: game
+        run: |
+          if [ -f game/default.xex ] && [ -f game/data.pak ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No game files in game/, so nothing to build. Add your own default.xex and data.pak (see README)."
+          fi
+
+      - name: Install LLVM, CMake and Ninja
+        if: steps.game.outputs.present == 'true'
+        shell: pwsh
+        run: |
+          choco install llvm cmake ninja -y --no-progress
+          "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "C:\Program Files\CMake\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Download ReXGlue SDK ${{ env.REXGLUE_VERSION }}
+        if: steps.game.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rexsdk"
+          gh release download "$REXGLUE_VERSION" -R rexglue/rexglue-sdk \
+            --pattern '*win-amd64.zip' --dir "$RUNNER_TEMP/rexsdk"
+          cd "$RUNNER_TEMP/rexsdk"
+          7z x -y ./*.zip > /dev/null
+          SDK_ROOT=$(cygpath -m "$(pwd)/win-amd64")
+          ls "$SDK_ROOT"
+          echo "REXSDK_PREFIX=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$(cygpath -w "$SDK_ROOT/bin")" >> "$GITHUB_PATH"
+
+      - name: Python image library (for the stand-in avatar)
+        if: steps.game.outputs.present == 'true'
+        run: python -m pip install --quiet pillow
+
+      - name: Tool versions
+        if: steps.game.outputs.present == 'true'
+        run: |
+          clang --version
+          python --version
+          cmake --version
+          ninja --version
+
+      - name: Set up sccache
+        if: steps.game.outputs.present == 'true'
+        uses: hendrikmuhs/ccache-action@v1.2.22
+        with:
+          variant: sccache
+          key: win-amd64-${{ env.REXGLUE_VERSION }}
+
+      # ReXGlue's CMake picks up the generated sources at configure time, so
+      # configure once, run codegen, then configure again before building.
+      - name: Configure
+        if: steps.game.outputs.present == 'true'
+        run: |
+          cmake --preset win-amd64-release \
+            -DCMAKE_PREFIX_PATH="$REXSDK_PREFIX" \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Recompile game code (codegen)
+        if: steps.game.outputs.present == 'true'
+        run: cmake --build out/build/win-amd64-release --target ${PROJECT}_codegen
+
+      - name: Reconfigure with generated sources
+        if: steps.game.outputs.present == 'true'
+        run: cmake --preset win-amd64-release
+
+      - name: Build
+        if: steps.game.outputs.present == 'true'
+        run: cmake --build out/build/win-amd64-release --parallel
+
+      - name: Package
+        if: steps.game.outputs.present == 'true'
+        run: |
+          BUILD=out/build/win-amd64-release
+          PKG="DoritosCrashCourse"
+          mkdir -p "$PKG/game"
+          EXE=$(find "$BUILD" -name "${PROJECT}.exe" | head -1)
+          echo "exe: $EXE"
+          cp "$EXE" "$PKG/DoritosCrashCourse.exe"
+
+          # ReXGlue runtime and the Xenos GPU plugin (release builds only;
+          # the build stages exactly these next to the exe).
+          EXE_DIR=$(dirname "$EXE")
+          for dll in rexruntime.dll rexgpu-xenos.dll TracyClient.dll; do
+            if [ -f "$EXE_DIR/$dll" ]; then cp "$EXE_DIR/$dll" "$PKG/";
+            elif [ -f "$REXSDK_PREFIX/bin/$dll" ]; then cp "$REXSDK_PREFIX/bin/$dll" "$PKG/";
+            else echo "::error::missing $dll"; exit 1; fi
+          done
+
+          # Visual C++ runtime, deployed app-locally so the exe starts on PCs
+          # without the VC++ Redistributable installed.
+          VSWHERE="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+          VSDIR=$(cygpath -u "$("$VSWHERE" -latest -products '*' -property installationPath | tr -d '\r')")
+          CRT=$(find "$VSDIR/VC/Redist/MSVC" -path '*/x64/Microsoft.VC14*.CRT' -type d | grep -v onecore | sort | tail -1)
+          echo "VC runtime: $CRT"
+          for dll in msvcp140.dll msvcp140_atomic_wait.dll vcruntime140.dll vcruntime140_1.dll; do
+            cp "$CRT/$dll" "$PKG/"
+          done
+          for dll in msvcp140_1.dll msvcp140_2.dll; do
+            [ -f "$CRT/$dll" ] && cp "$CRT/$dll" "$PKG/"
+          done
+
+          cp game/default.xex game/data.pak game/standin_avatar.bin "$PKG/game/"
+          [ -f game/ArcadeInfo.xml ] && cp game/ArcadeInfo.xml "$PKG/game/"
+          cp packaging/README.txt "$PKG/README.txt"
+          cp packaging/doritos_crash_course.toml "$PKG/doritos_crash_course.toml"
+
+          # Every DLL the exe and runtime import must be in the package or be
+          # part of Windows itself.
+          for f in "$PKG"/*.exe "$PKG"/*.dll; do
+            llvm-objdump -p "$f" | sed -n 's/^\s*DLL Name: //p'
+          done | sort -fu | while read -r dep; do
+            lower=$(echo "$dep" | tr 'A-Z' 'a-z')
+            if ls "$PKG" | tr 'A-Z' 'a-z' | grep -qx "$lower"; then continue; fi
+            if [ -f "/c/Windows/System32/$dep" ] && ! echo "$lower" | grep -qE '^(msvcp|vcruntime)'; then continue; fi
+            case "$lower" in api-ms-win-*) continue ;; esac
+            echo "::error::$dep is imported but not packaged"; exit 1
+          done
+          ls -la "$PKG" "$PKG/game"
+          7z a -tzip DoritosCrashCourse-win64.zip "$PKG" > /dev/null
+          ls -la DoritosCrashCourse-win64.zip
+
+      - name: Upload build artifact
+        if: steps.game.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoritosCrashCourse-win64
+          path: DoritosCrashCourse
+          retention-days: 30
+
+      - name: Move "latest" tag to this commit
+        if: steps.game.outputs.present == 'true' && github.event_name != 'pull_request'
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Publish "latest" release
+        if: steps.game.outputs.present == 'true' && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build
+          prerelease: true
+          make_latest: true
+          body: |
+            Automatic build of `${{ github.sha }}`.
+            Download **DoritosCrashCourse-win64.zip**, extract it, and run `DoritosCrashCourse.exe`.
+          files: DoritosCrashCourse-win64.zip

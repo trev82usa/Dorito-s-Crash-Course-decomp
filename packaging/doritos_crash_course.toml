@@ -1,0 +1,21 @@
+# Doritos Crash Course settings (read at startup from the exe's folder).
+
+# Keyboard and mouse act as an Xbox controller, so the game is playable
+# without a pad. A connected controller still works.
+#   Move: W A S D        A: Space        B: Backspace     X: L     Y: P
+#   Start: Enter         Back: Tab       Triggers: Q / E  Bumpers: 1 / 3
+#   Camera: arrow keys   D-pad: Shift + arrow keys
+mnk_mode = true
+
+# Avatars. If the free "Xbox Original Avatars" app from the Microsoft Store is
+# (https://apps.microsoft.com/detail/9nblgggz5qdq)
+# installed and has been opened once (signed in), the game uses your avatar
+# from it; otherwise a stand-in character.
+#   avatar_gamertag = "YourTag"    # play as this gamertag's avatar (from the
+#                                  # app's friends list) instead of guessing
+#   avatar_mode = "standin"        # always use the stand-in
+#   avatar_colors = "ffe6bc8e,ff4f463d,ffb56157,ff82501d,ff4f463d,ffc5496d,ff4f463d,ffecb6be,ffecb6be"
+#                                  # skin, hair, lips, eyes, eyebrows, eye shadow,
+#                                  # facial hair, skin features 1 and 2 (ARGB hex)
+#   avatar_random_outfits = false  # other characters copy your avatar instead
+#                                  # of using your friends' avatars

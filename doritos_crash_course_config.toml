@@ -1,0 +1,24 @@
+# Codegen hints for Doritos Crash Course, included from the manifest.
+# ReXGlue's own analysis handles the rest of the executable.
+
+# sub_8285DCB0 dispatches on a byte table at 0x820ECEF8 with no bounds check.
+# Auto-detection read past the 16 real entries into the next function's
+# table, pulling code from sub_8285DE00 into this function. Entry 4 is a
+# tail jump to sub_8285DE00 itself.
+[[switch_tables]]
+address = 0x8285DCF4
+register = 11
+labels = [
+    0x8285DD28, 0x8285DD28, 0x8285DD28, 0x8285DD28,
+    0x8285DE00, 0x8285DD28, 0x8285DD28, 0x8285DD28,
+    0x8285DD28, 0x8285DCF8, 0x8285DD28, 0x8285DD28,
+    0x8285DCF8, 0x8285DCF8, 0x8285DCF8, 0x8285DCF8,
+]
+
+# Functions reached only through pointers loaded as constants (lis/addi),
+# which ReXGlue's discovery doesn't find. Located with
+# tools/find_callback_functions.py and checked by hand.
+[functions]
+0x82772BD0 = {}  # leaf comparator callback, referenced at 0x8278BDCC
+0x8273D298 = {}  # branch thunk, referenced at 0x82728DF8 / 0x82728E64
+0x829F6620 = {}  # empty callback (blr), referenced at 0x829F1F30
