@@ -3,7 +3,7 @@
 # SDK boilerplate lives in generated/rexglue.cmake.
 
 cmake_minimum_required(VERSION 3.25)
-project(doritos_crash_course LANGUAGES CXX)
+project(doritos_crash_course LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +17,8 @@ set(DORITOSCRASHCOURSE_SOURCES
     src/avatar_standin.cpp
     src/avatar_real.cpp
     src/frame_stats.cpp
+    src/standin_maker.cpp
+    src/third_party/lzma/LzmaDec.c
 )
 
 # Xbox avatar asset loading, from gibbed's xenia avatars branch (BSD licence,
@@ -44,21 +46,3 @@ target_include_directories(doritos_crash_course PRIVATE src src/avatars)
 # Stage the Xenos GPU emulation plugin next to the exe (it is loaded at runtime).
 rexglue_setup_target(doritos_crash_course GPU_PLUGINS xenos)
 
-# Stand-in avatar (game/standin_avatar.bin), made from your data.pak by
-# tools/make_standin_avatar.py. Needs Python 3 with Pillow.
-set(DCC_STANDIN "${CMAKE_SOURCE_DIR}/game/standin_avatar.bin")
-find_package(Python3 COMPONENTS Interpreter)
-if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/game/data.pak")
-    add_custom_command(
-        OUTPUT "${DCC_STANDIN}"
-        COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/tools/make_standin_avatar.py"
-                "${CMAKE_SOURCE_DIR}/game/data.pak" "${DCC_STANDIN}"
-        DEPENDS "${CMAKE_SOURCE_DIR}/game/data.pak"
-                "${CMAKE_SOURCE_DIR}/tools/make_standin_avatar.py"
-        COMMENT "Making the stand-in avatar from data.pak")
-    add_custom_target(doritos_crash_course_standin ALL DEPENDS "${DCC_STANDIN}")
-elseif(NOT EXISTS "${DCC_STANDIN}")
-    message(WARNING "game/standin_avatar.bin can't be made (needs Python 3 and "
-                    "game/data.pak); without it and the Xbox Original Avatars "
-                    "app the player character is invisible.")
-endif()

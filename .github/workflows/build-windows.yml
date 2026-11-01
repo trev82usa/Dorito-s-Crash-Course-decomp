@@ -60,15 +60,10 @@ jobs:
           echo "REXSDK_PREFIX=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$(cygpath -w "$SDK_ROOT/bin")" >> "$GITHUB_PATH"
 
-      - name: Python image library (for the stand-in avatar)
-        if: steps.game.outputs.present == 'true'
-        run: python -m pip install --quiet pillow
-
       - name: Tool versions
         if: steps.game.outputs.present == 'true'
         run: |
           clang --version
-          python --version
           cmake --version
           ninja --version
 
@@ -133,7 +128,7 @@ jobs:
             [ -f "$CRT/$dll" ] && cp "$CRT/$dll" "$PKG/"
           done
 
-          cp game/default.xex game/data.pak game/standin_avatar.bin "$PKG/game/"
+          cp game/default.xex game/data.pak "$PKG/game/"
           [ -f game/ArcadeInfo.xml ] && cp game/ArcadeInfo.xml "$PKG/game/"
           cp packaging/README.txt "$PKG/README.txt"
           cp packaging/doritos_crash_course.toml "$PKG/doritos_crash_course.toml"

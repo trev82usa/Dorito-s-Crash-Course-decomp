@@ -7,9 +7,9 @@ Course 2 (Xbox Live Arcade).
 To play:
   1. Copy default.xex and data.pak from your copy of the game into the
      "game" folder next to the exe.
-  2. Install the free "Xbox Original Avatars" app (see "Your Xbox avatar"
-     below) so the player character has an avatar to show.
-  3. Double-click DoritosCrashCourse.exe.
+  2. Double-click DoritosCrashCourse.exe.
+  Optional: install the "Xbox Original Avatars" app to play as your own
+  Xbox avatar (see below).
 
 Requirements
   - Windows 10 or 11, 64-bit
@@ -27,16 +27,14 @@ Playing
   - On the "not signed in to Xbox LIVE" message press B (Backspace) to
     carry on. Online features aren't available.
 
-Your Xbox avatar
+Your Xbox avatar (optional - otherwise you play as a stand-in character)
   1. Install the free "Xbox Original Avatars" app from the Microsoft Store:
      https://apps.microsoft.com/detail/9nblgggz5qdq
   2. Open it once, signed in with your Xbox account, and let your avatar
      load.
   3. Start the game. If it shows the wrong avatar, add your gamertag to
      doritos_crash_course.toml:   avatar_gamertag = "YourTag"
-  The other racers use your friends' avatars. Without the app, the
-  character is only drawn if game\standin_avatar.bin is present (built from
-  your data.pak by tools/make_standin_avatar.py in the source repository).
+  The other racers use your friends' avatars.
 
 If something goes wrong
   - Logs are written to the "logs" folder next to the exe. The latest log

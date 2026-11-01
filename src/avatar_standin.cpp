@@ -36,6 +36,7 @@
 #include <rex/system/kernel_state.h>
 
 #include "avatar_real.h"
+#include "standin_maker.h"
 
 REXCVAR_DEFINE_STRING(avatar_mode, "auto", "Avatars",
                       "auto: use your avatar from the Xbox Original Avatars app if it is "
@@ -116,6 +117,17 @@ void LoadStandin() {
     file.assign(std::istreambuf_iterator<char>(in), {});
     REXLOG_INFO("Avatar: loading stand-in avatar from {}", path.string());
     break;
+  }
+  if (file.empty()) {
+    // Not shipped: build it from the game's own data.pak and keep a copy.
+    auto pak = exe_dir / "game" / "data.pak";
+    if (dcc_avatar::MakeStandinFromPak(pak, file)) {
+      REXLOG_INFO("Avatar: made the stand-in avatar from {}", pak.string());
+      std::ofstream save(candidates[0], std::ios::binary);
+      if (save) save.write(reinterpret_cast<const char*>(file.data()), std::streamsize(file.size()));
+    } else {
+      file.clear();
+    }
   }
   if (file.size() < 8 + kMetadataSize || std::memcmp(file.data(), "DCSA", 4) != 0) {
     REXLOG_ERROR("Avatar: game/standin_avatar.bin is missing or invalid");

@@ -31,8 +31,8 @@ then copy `default.xex` and `data.pak` from `extracted/` into `game/`.
 
 ## Building
 
-Windows, without Visual Studio: install LLVM, CMake, Ninja and Python
-(`choco install llvm cmake ninja python`, then `pip install pillow`), download
+Windows, without Visual Studio: install LLVM, CMake and Ninja
+(`choco install llvm cmake ninja`), download
 the ReXGlue SDK release named in the workflow (`REXGLUE_VERSION`), then:
 
 ```
@@ -43,8 +43,7 @@ cmake --build out/build/win-amd64-release
 ```
 
 The Windows SDK headers come from the Visual Studio Build Tools (GitHub's
-runners already have them). The build also makes `game/standin_avatar.bin`, the
-stand-in character, from your `data.pak` (needs Python with Pillow).
+runners already have them).
 
 The GitHub Actions workflow does the same. It only builds when the game files
 are available to it, so on this repository it skips the build; on a private
@@ -54,8 +53,8 @@ a ready-to-run zip.
 
 ## Playing
 
-Run the exe with the `game` folder (holding `default.xex`, `data.pak` and
-`standin_avatar.bin`) next to it. You need 64-bit Windows 10/11 and a
+Run the exe with the `game` folder (holding `default.xex` and `data.pak`)
+next to it. You need 64-bit Windows 10/11 and a
 DirectX 12 capable GPU.
 An Xbox controller works, and so does the keyboard (Space = A, Enter = Start,
 WASD = stick; the full list is in `packaging/README.txt`). Logs go to `logs/`
@@ -68,7 +67,8 @@ carry on; online features aren't available.
 ## Your Xbox avatar
 
 The characters are Xbox avatars. **The app below is optional**: without it the
-game still plays fine with a built-in stand-in character. To play as your own
+game uses a stand-in character, which it makes from the game's own `data.pak`
+the first time it starts. To play as your own
 avatar:
 
 1. Install the free [**Xbox Original Avatars**](https://apps.microsoft.com/detail/9nblgggz5qdq) app from the
@@ -99,6 +99,8 @@ game/default.xex  ──rexglue codegen──▶  generated/default/*.cpp  ─�
   are needed; `usbcam_stubs.cpp` stubs the camera imports;
   `avatar_standin.cpp` and `avatar_real.cpp` serve the Xbox avatar (with
   gibbed's xenia avatar loader in `src/avatars/`, BSD licence);
+  `standin_maker.cpp` builds the stand-in character from `data.pak`
+  (third-party decoders in `src/third_party/`);
   `frame_stats.cpp` feeds the F3 FPS overlay; `input_fix.cpp` fixes
   controller reads (pause and B).
 - `packaging/`: README and settings file for the packaged build.
