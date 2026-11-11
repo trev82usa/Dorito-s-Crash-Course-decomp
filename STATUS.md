@@ -68,6 +68,13 @@ All live in `doritos_crash_course_config.toml` and
    registering. Failed reads now return a cleared state.
 6. **F3 frame rate** (`src/frame_stats.cpp`): counts the game's VdSwap calls
    and feeds the debug overlay's FPS line.
+7. **Full game, not the trial** (`src/doritos_crash_course_app.h`): ReXGlue
+   reports a licence mask of 0 (XBLA trial) by default; it's now set to all
+   bits granted, as in the Trials HD port.
+8. **From the Trials HD port:** the F1 settings menu (`src/dcc_menu.cpp`),
+   the 60 fps frame limiter and Windows 1 ms timer resolution
+   (`src/frame_stats.cpp`), `crash.txt` on crashes (`src/crash_handler.cpp`),
+   clean quitting and Linux `/dev/shm` memory cleanup (`src/game_exit.cpp`).
 
 ## If it crashes
 

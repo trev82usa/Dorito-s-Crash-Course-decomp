@@ -1,4 +1,4 @@
-name: Build Windows exe
+name: Build Windows and Linux
 
 on:
   push:
@@ -29,6 +29,7 @@ jobs:
       # game/default.xex and game/data.pak have been added (see README).
       - name: Check for game files
         id: game
+        shell: bash
         run: |
           if [ -f game/default.xex ] && [ -f game/data.pak ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
@@ -156,14 +157,158 @@ jobs:
           path: DoritosCrashCourse
           retention-days: 30
 
-      - name: Move "latest" tag to this commit
+      - name: Upload zip for the release
         if: steps.game.outputs.present == 'true' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-win64
+          path: DoritosCrashCourse-win64.zip
+          retention-days: 1
+
+  linux:
+    # The ReXGlue Linux runtime needs glibc 2.38 / GLIBCXX 3.4.32, so the
+    # build targets Ubuntu 24.04 and newer.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    outputs:
+      built: ${{ steps.game.outputs.present }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The game's files aren't in the public repository: build only where
+      # game/default.xex and game/data.pak have been added (see README).
+      - name: Check for game files
+        id: game
+        shell: bash
+        run: |
+          if [ -f game/default.xex ] && [ -f game/data.pak ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No game files in game/, so nothing to build. Add your own default.xex and data.pak (see README)."
+          fi
+
+      - name: Install clang 20, CMake and Ninja
+        if: steps.game.outputs.present == 'true'
+        run: |
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          sudo apt-get install -y clang-20 lld-20 cmake ninja-build
+
+      - name: Download ReXGlue SDK ${{ env.REXGLUE_VERSION }}
+        if: steps.game.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rexsdk"
+          gh release download "$REXGLUE_VERSION" -R rexglue/rexglue-sdk \
+            --pattern '*linux-amd64.zip' --dir "$RUNNER_TEMP/rexsdk"
+          cd "$RUNNER_TEMP/rexsdk"
+          unzip -q ./*.zip
+          ls linux-amd64
+          echo "REXSDK_PREFIX=$(pwd)/linux-amd64" >> "$GITHUB_ENV"
+          echo "$(pwd)/linux-amd64/bin" >> "$GITHUB_PATH"
+
+      - name: Set up sccache
+        if: steps.game.outputs.present == 'true'
+        uses: hendrikmuhs/ccache-action@v1.2.22
+        with:
+          variant: sccache
+          key: linux-amd64-${{ env.REXGLUE_VERSION }}
+
+      - name: Configure
+        if: steps.game.outputs.present == 'true'
+        run: |
+          cmake --preset linux-amd64-release \
+            -DCMAKE_PREFIX_PATH="$REXSDK_PREFIX" \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Recompile game code (codegen)
+        if: steps.game.outputs.present == 'true'
+        run: cmake --build out/build/linux-amd64-release --target ${PROJECT}_codegen
+
+      - name: Reconfigure with generated sources
+        if: steps.game.outputs.present == 'true'
+        run: cmake --preset linux-amd64-release
+
+      - name: Build
+        if: steps.game.outputs.present == 'true'
+        run: cmake --build out/build/linux-amd64-release --parallel
+
+      - name: Package
+        if: steps.game.outputs.present == 'true'
+        run: |
+          BUILD=out/build/linux-amd64-release
+          PKG="DoritosCrashCourse"
+          mkdir -p "$PKG/game"
+          cp "$BUILD/${PROJECT}" "$PKG/DoritosCrashCourse"
+          strip "$PKG/DoritosCrashCourse"
+          for lib in librexruntime.so librexgpu-xenos.so; do
+            if [ -f "$BUILD/$lib" ]; then cp "$BUILD/$lib" "$PKG/";
+            elif [ -f "$REXSDK_PREFIX/lib/$lib" ]; then cp "$REXSDK_PREFIX/lib/$lib" "$PKG/";
+            else echo "::error::missing $lib"; exit 1; fi
+          done
+          # Any further SDK libraries the binaries need go alongside them.
+          for f in "$PKG"/DoritosCrashCourse "$PKG"/*.so; do
+            readelf -d "$f" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p'
+          done | sort -u | while read -r dep; do
+            [ -f "$PKG/$dep" ] && continue
+            if [ -f "$REXSDK_PREFIX/lib/$dep" ]; then cp "$REXSDK_PREFIX/lib/$dep" "$PKG/"; fi
+          done
+          # The exe finds librexruntime.so next to itself ($ORIGIN runpath);
+          # make the plugin do the same.
+          sudo apt-get install -y patchelf
+          for f in "$PKG"/*.so; do patchelf --set-rpath '$ORIGIN' "$f"; done
+          cp game/default.xex game/data.pak "$PKG/game/"
+          [ -f game/ArcadeInfo.xml ] && cp game/ArcadeInfo.xml "$PKG/game/"
+          cp packaging/README-linux.txt "$PKG/README.txt"
+          cp packaging/doritos_crash_course.toml "$PKG/doritos_crash_course.toml"
+          (cd "$PKG" && ldd ./DoritosCrashCourse ./*.so | grep "not found" && exit 1 || true)
+          ls -la "$PKG" "$PKG/game"
+          tar -czf DoritosCrashCourse-linux-x64.tar.gz "$PKG"
+          ls -la DoritosCrashCourse-linux-x64.tar.gz
+
+      - name: Upload build artifact
+        if: steps.game.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64
+          path: DoritosCrashCourse-linux-x64.tar.gz
+          retention-days: 30
+
+  release:
+    if: github.event_name != 'pull_request' && needs.linux.outputs.built == 'true'
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The game's files aren't in the public repository: build only where
+      # game/default.xex and game/data.pak have been added (see README).
+      - name: Check for game files
+        id: game
+        shell: bash
+        run: |
+          if [ -f game/default.xex ] && [ -f game/data.pak ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No game files in game/, so nothing to build. Add your own default.xex and data.pak (see README)."
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Move "latest" tag to this commit
         run: |
           git tag -f latest
           git push -f origin latest
 
       - name: Publish "latest" release
-        if: steps.game.outputs.present == 'true' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -172,5 +317,8 @@ jobs:
           make_latest: true
           body: |
             Automatic build of `${{ github.sha }}`.
-            Download **DoritosCrashCourse-win64.zip**, extract it, and run `DoritosCrashCourse.exe`.
-          files: DoritosCrashCourse-win64.zip
+            - **Windows:** download **DoritosCrashCourse-win64.zip**, extract it, and run `DoritosCrashCourse.exe`.
+            - **Linux (Ubuntu 24.04 or newer):** download **DoritosCrashCourse-linux-x64.tar.gz**, extract it, and run `./DoritosCrashCourse`.
+          files: |
+            DoritosCrashCourse-win64.zip
+            DoritosCrashCourse-linux-x64.tar.gz

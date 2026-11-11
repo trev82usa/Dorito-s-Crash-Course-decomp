@@ -19,3 +19,7 @@ mnk_mode = true
 #                                  # facial hair, skin features 1 and 2 (ARGB hex)
 #   avatar_random_outfits = false  # other characters copy your avatar instead
 #                                  # of using your friends' avatars
+
+# Most settings can be changed in game: press F1 (or LB + RB + X).
+#   dcc_fps_cap = 60               # frame limiter: even 60 fps (0 = off)
+#   resolution_scale = 2           # 1 = 720p, 2 = 1440p, 3 = 4K

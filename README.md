@@ -54,12 +54,15 @@ a ready-to-run zip.
 ## Playing
 
 Run the exe with the `game` folder (holding `default.xex` and `data.pak`)
-next to it. You need 64-bit Windows 10/11 and a
-DirectX 12 capable GPU.
+next to it. Windows needs 64-bit Windows 10/11 and a DirectX 12 capable GPU.
+The Linux build (`./DoritosCrashCourse`) needs glibc 2.38+ (Ubuntu 24.04 or
+newer) and a Vulkan driver; the avatar app is Windows-only, so Linux uses the
+stand-in character.
 An Xbox controller works, and so does the keyboard (Space = A, Enter = Start,
 WASD = stick; the full list is in `packaging/README.txt`). Logs go to `logs/`
-next to the exe. Press **F3** for the frame-rate overlay; **Start** (or Enter)
-pauses.
+next to the exe. Press **F1** (or **LB + RB + X**) for the settings menu
+(avatar, resolution, fullscreen, frame limiter, vsync, texture filtering, sound
+and controls), **F3** for the frame-rate overlay; **Start** (or Enter) pauses.
 
 On the "not signed in to Xbox LIVE" message, press **B** (or Backspace) to
 carry on; online features aren't available.
@@ -102,7 +105,10 @@ game/default.xex  ──rexglue codegen──▶  generated/default/*.cpp  ─�
   `standin_maker.cpp` builds the stand-in character from `data.pak`
   (third-party decoders in `src/third_party/`);
   `frame_stats.cpp` feeds the F3 FPS overlay; `input_fix.cpp` fixes
-  controller reads (pause and B).
+  controller reads (pause and B); `dcc_menu.cpp` is the F1 settings menu;
+  `crash_handler.cpp` writes `crash.txt`; `game_exit.cpp` handles quitting
+  and Linux memory cleanup. The menu, frame limiter, crash handler and exit
+  handling come from the Trials HD port.
 - `packaging/`: README and settings file for the packaged build.
 - `generated/rexglue.cmake`: ReXGlue CMake glue (from `rexglue init`).
 - `generated/default/`: recompiled C++, produced during every build and not

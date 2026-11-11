@@ -23,7 +23,12 @@ Requirements
     doritos_crash_course.toml.
 
 Playing
+  - F1 (or LB + RB + X on a controller) opens the settings menu: avatar,
+    resolution, fullscreen, frame limiter, vsync, texture filtering, sound
+    and controls. Press Save to keep changes.
   - Start (Enter) pauses. F3 shows the frame rate.
+  - If the game stutters on a high-refresh screen, turn on the frame
+    limiter in F1 -> Graphics & Sound.
   - On the "not signed in to Xbox LIVE" message press B (Backspace) to
     carry on. Online features aren't available.
 
@@ -37,6 +42,8 @@ Your Xbox avatar (optional - otherwise you play as a stand-in character)
   The other racers use your friends' avatars.
 
 If something goes wrong
+  - If the game crashes it writes crash.txt next to the program; please
+    send it along with the newest log.
   - Logs are written to the "logs" folder next to the exe. The latest log
     shows how far the game got.
   - Settings can be placed in doritos_crash_course.toml next to the exe.

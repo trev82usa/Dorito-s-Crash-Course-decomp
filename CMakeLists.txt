@@ -17,6 +17,9 @@ set(DORITOSCRASHCOURSE_SOURCES
     src/avatar_standin.cpp
     src/avatar_real.cpp
     src/frame_stats.cpp
+    src/crash_handler.cpp
+    src/game_exit.cpp
+    src/dcc_menu.cpp
     src/standin_maker.cpp
     src/third_party/lzma/LzmaDec.c
 )
