@@ -20,6 +20,7 @@ set(DORITOSCRASHCOURSE_SOURCES
     src/crash_handler.cpp
     src/game_exit.cpp
     src/dcc_menu.cpp
+    src/input_lock.cpp
     src/standin_maker.cpp
     src/third_party/lzma/LzmaDec.c
 )

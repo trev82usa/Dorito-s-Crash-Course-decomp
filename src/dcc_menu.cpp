@@ -4,6 +4,8 @@
 // replacing only the affected "key = value" lines so the file's comments stay as they are.
 #include "dcc_menu.h"
 
+#include "input_fix.h"
+
 #include <imgui.h>
 #include <rex/cvar.h>
 #include <rex/logging.h>
@@ -155,6 +157,7 @@ float Axis(int16_t v) {
 Pad ReadPads() {
   Pad p;
   if (!g_input) return p;
+  std::lock_guard lock(InputLock());  // the game reads pads on other threads
   t_menu_reading = true;
   for (uint32_t user = 0; user < 4; ++user) {
     rex::input::X_INPUT_STATE st{};
