@@ -1,4 +1,4 @@
-# Doritos Crash Course 2: native PC port
+# Doritos Crash Course 2: native PC port WIP
 
 A static recompilation of the Xbox Live Arcade game *Doritos Crash Course 2*
 (title ID `58410A71`) to a native Windows executable, built with
